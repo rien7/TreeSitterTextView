@@ -14,7 +14,7 @@ TreeSitterTextView is a Swift library that integrates the [Tree-sitter](https://
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/rien7/TreeSitterTextView.git", brance: "main"),
+    .package(url: "https://github.com/rien7/TreeSitterTextView.git", branch: "main"),
 ]
 ```
 
