@@ -30,6 +30,10 @@ open class TSTextView: NSTextView {
         }
     }
     
+    public func disableTreeSitter() {
+        self.rootLayer = nil
+    }
+    
     public func setupEditor(
         baseFontSize: CGFloat = 16,
         baseFontWeight: NSFont.Weight = .regular,
