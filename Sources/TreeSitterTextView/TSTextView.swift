@@ -50,7 +50,7 @@ open class TSTextView: NSTextView {
     
     // MARK: - Override Function
     
-    override public func setMarkedText(
+    override open func setMarkedText(
         _ string: Any,
         selectedRange: NSRange,
         replacementRange: NSRange
@@ -77,7 +77,7 @@ open class TSTextView: NSTextView {
         )
     }
 
-    override public func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?)
+    override open func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?)
         -> Bool
     {
         self.changeLastStyleRange(in: affectedCharRange, length: replacementString?.count ?? 0)
@@ -97,7 +97,7 @@ open class TSTextView: NSTextView {
         )
     }
 
-    override public func insertText(_ string: Any, replacementRange: NSRange) {
+    override open func insertText(_ string: Any, replacementRange: NSRange) {
         guard let _ = rootLayer else {
             return super.insertText(string, replacementRange: replacementRange)
         }
@@ -113,14 +113,38 @@ open class TSTextView: NSTextView {
             replacementRange: replacementRange)
     }
     
-    override public func didChangeText() {
+    override open func didChangeText() {
         super.didChangeText()
         self.scheduleRenderTreesitter()
     }
 
-    override public func unmarkText() {
+    override open func unmarkText() {
         super.unmarkText()
         self.selectedRangeBeforeMark = nil
+    }
+    
+    override open func scrollRangeToVisible(_ range: NSRange) {
+        super.scrollRangeToVisible(range)
+    }
+    
+    override open func scrollToVisible(_ rect: NSRect) -> Bool {
+        super.scrollToVisible(rect)
+    }
+    
+    override open func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+    }
+    
+    override open func copy(_ sender: Any?) {
+        super.copy(sender)
+    }
+    
+    override open func keyUp(with event: NSEvent) {
+        super.keyUp(with: event)
+    }
+
+    override open func keyDown(with event: NSEvent) {
+        super.keyDown(with: event)
     }
 
     // MARK: - Private Util Function
