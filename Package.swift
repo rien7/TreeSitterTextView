@@ -5,17 +5,28 @@ import PackageDescription
 
 let package = Package(
     name: "TreeSitterTextView",
+    platforms: [
+        .macOS(.v10_15),
+        .macCatalyst(.v13),
+        .iOS(.v12),
+        .tvOS(.v12),
+        .watchOS(.v5),
+        .visionOS(.v1),
+    ],
     products: [
-        // Products define the executables and libraries a package produces, making them visible to other packages.
-        .library(
-            name: "TreeSitterTextView",
-            targets: ["TreeSitterTextView"]),
+        .library(name: "TreeSitterTextView", targets: ["TreeSitterTextView"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/tree-sitter/swift-tree-sitter", .upToNextMinor(from: "0.9.0")),
     ],
     targets: [
-        // Targets are the basic building blocks of a package, defining a module or a test suite.
-        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "TreeSitterTextView"),
+            name: "TreeSitterTextView",
+            dependencies: [
+                .product(name: "SwiftTreeSitter", package: "swift-tree-sitter"),
+                .product(name: "SwiftTreeSitterLayer", package: "swift-tree-sitter")
+            ]
+        ),
         .testTarget(
             name: "TreeSitterTextViewTests",
             dependencies: ["TreeSitterTextView"]
