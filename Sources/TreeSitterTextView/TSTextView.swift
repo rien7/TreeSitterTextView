@@ -2,7 +2,7 @@ import AppKit
 import SwiftTreeSitter
 import SwiftTreeSitterLayer
 
-public class TSTextView: NSTextView {
+open class TSTextView: NSTextView {
     private var lastStyleRange: TSStyleRange?
     private var rootLayer: LanguageLayer?
     private var styleMap: [String: TSStyle] = [:]
