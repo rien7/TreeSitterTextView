@@ -32,7 +32,7 @@ public class TSStyleRange {
         var pending: RangeStyle?
         for rangeStyle in rangeStyles {
             if var currentPending = pending {
-                if rangeStyle.style == currentPending.style {
+                if rangeStyle.style == currentPending.style && currentPending.range.upperBound == rangeStyle.range.lowerBound {
                     currentPending.range.length += rangeStyle.range.length
                     pending = currentPending
                 } else {
@@ -162,7 +162,7 @@ public class TSStyleRange {
             }
 
             if let style = applicableStyle {
-                if var currentPending = pending, currentPending.style == style {
+                if var currentPending = pending, currentPending.style == style, currentPending.range.upperBound == start {
                     currentPending.range.length += subrange.length
                     pending = currentPending
                 } else {
