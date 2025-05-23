@@ -32,24 +32,19 @@ open class TSTextView: NSTextView {
     
     public func disableTreeSitter() {
         self.rootLayer = nil
+        self.lastStyleRange = nil
     }
     
     public func setupEditor(
         baseFontSize: CGFloat = 16,
         baseFontWeight: NSFont.Weight = .regular,
         styleMap: [String: TSStyle] = [:],
-        paragraphStype: NSParagraphStyle? = nil,
         skipNodeType: Set<String> = Set()
     ) {
         self.baseFontSize = baseFontSize
         self.baseFontWeight = baseFontWeight
         self.styleMap = styleMap
-        if let paragraphStype = paragraphStype {
-            self.defaultParagraphStyle = paragraphStype
-            self.typingAttributes[.paragraphStyle] = paragraphStype
-        }
         self.skipNodeType = skipNodeType
-        self.scheduleRenderTreesitter()
     }
     
     // MARK: - Override Function
@@ -59,14 +54,6 @@ open class TSTextView: NSTextView {
         selectedRange: NSRange,
         replacementRange: NSRange
     ) {
-        guard let _ = rootLayer else {
-            return super.setMarkedText(
-                string,
-                selectedRange: selectedRange,
-                replacementRange: replacementRange
-            )
-        }
-        
         let range = selectedRangeBeforeMark ?? self.selectedRange()
         if selectedRangeBeforeMark == nil {
             selectedRangeBeforeMark = range
@@ -84,7 +71,9 @@ open class TSTextView: NSTextView {
     override open func shouldChangeText(in affectedCharRange: NSRange, replacementString: String?)
         -> Bool
     {
-        self.changeLastStyleRange(in: affectedCharRange, length: replacementString?.count ?? 0)
+        if !self.hasMarkedText() {
+            self.changeLastStyleRange(in: affectedCharRange, length: replacementString?.count ?? 0)
+        }
 //        self.changeLastLayer(
 //            getNewText(
 //                in: affectedCharRange,
@@ -102,19 +91,16 @@ open class TSTextView: NSTextView {
     }
 
     override open func insertText(_ string: Any, replacementRange: NSRange) {
-        guard let _ = rootLayer else {
-            return super.insertText(string, replacementRange: replacementRange)
-        }
-        
         let str = getStringFrom(string)
         let inputAttributes = getInputTextAttribute(
-            str,
+            self.string + str,
             selectedRange: self.selectedRange()
         )
         self.typingAttributes = inputAttributes
         super.insertText(
             NSAttributedString(string: str, attributes: inputAttributes),
             replacementRange: replacementRange)
+        self.selectedRangeBeforeMark = nil
     }
     
     override open func didChangeText() {
@@ -124,7 +110,6 @@ open class TSTextView: NSTextView {
 
     override open func unmarkText() {
         super.unmarkText()
-        self.selectedRangeBeforeMark = nil
     }
     
     override open func scrollRangeToVisible(_ range: NSRange) {
@@ -150,10 +135,8 @@ open class TSTextView: NSTextView {
     override open func keyDown(with event: NSEvent) {
         super.keyDown(with: event)
     }
-
-    // MARK: - Private Util Function
-
-    func scheduleRenderTreesitter() {
+    
+    public func scheduleRenderTreesitter() {
         renderItem?.cancel()
         renderItem = DispatchWorkItem(qos: .userInteractive) { [weak self] in
             guard let self else { return }
@@ -171,6 +154,8 @@ open class TSTextView: NSTextView {
                 )
         }
     }
+
+    // MARK: - Private Util Function
 
     func renderTreesitter() throws {
         guard let layer = rootLayer, !self.hasMarkedText() else { return }
@@ -241,10 +226,10 @@ open class TSTextView: NSTextView {
             in: NSRange(location: selectedRange.location - 1, length: 1)
         )
         let nextAttributeString = getAttributeString(
-            in: NSRange(location: selectedRange.location + 1, length: 1)
+            in: NSRange(location: selectedRange.location, length: 1)
         )
         if lastAttributeString == nil {
-            // Start of tezt
+            // Start of text
             attrs = baseAttrStyle
         } else if lastAttributeString!.string == "\n" {
             // Start of new line
@@ -256,12 +241,10 @@ open class TSTextView: NSTextView {
         ) as? Set<String>,
               !nodeType.isDisjoint(with: skipNodeType)
         {
-            // Last char is delimiter
             attrs = nextAttributeString?.attributes(at: 0, effectiveRange: nil) ?? baseAttrStyle
         } else {
             attrs = lastAttributeString!.attributes(at: 0, effectiveRange: nil)
         }
-
         let attrFont =
             attrs[.font] as? NSFont
             ?? NSFont.systemFont(
@@ -269,6 +252,7 @@ open class TSTextView: NSTextView {
                 weight: baseFontWeight
             )
         let font = getDynamicSystemFont(text: string, baseFont: attrFont)
+        attrs[NSAttributedString.Key("NSOriginalFont")] = font
         attrs[.font] = font
         return attrs
     }

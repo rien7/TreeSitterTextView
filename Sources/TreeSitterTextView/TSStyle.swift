@@ -56,7 +56,7 @@ extension TSStyle {
         foregroundColor: .textColor,
         backgroundColor: .clear,
         fontSize: 1,
-        fontWeight: .regular,
+        fontWeight: nil,
         fontStyle: .none,
         tsNodeType: [],
         priority: 0
