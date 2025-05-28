@@ -59,7 +59,7 @@ open class TSTextView: NSTextView {
             selectedRangeBeforeMark = range
         }
         let str = getStringFrom(string)
-        let inputAttributes = getInputTextAttribute(self.string + str, selectedRange: range)
+        let inputAttributes = getInputTextAttribute(self.string, selectedRange: range)
         self.typingAttributes = inputAttributes
         super.setMarkedText(
             NSAttributedString(string: str, attributes: inputAttributes),
@@ -91,10 +91,13 @@ open class TSTextView: NSTextView {
     }
 
     override open func insertText(_ string: Any, replacementRange: NSRange) {
+        let range = self.selectedRangeBeforeMark ?? self.selectedRange()
         let str = getStringFrom(string)
+        var attributeString = getAttributeStringWithoutMark()
+        attributeString.insert(.init(string: str), at: range.location)
         let inputAttributes = getInputTextAttribute(
-            self.string + str,
-            selectedRange: self.selectedRange()
+            attributeString.string,
+            selectedRange: range
         )
         self.typingAttributes = inputAttributes
         super.insertText(
@@ -197,7 +200,7 @@ open class TSTextView: NSTextView {
         
         if let textStorage = self.textStorage {
             textStorage.beginEditing()
-            for (range, attrs) in rangeAttrs {
+            for (range, var attrs) in rangeAttrs {
                 guard range.upperBound <= string.count else { continue }
                 let existNodeType = attributeString.attribute(
                     .treesitterNodeType,
@@ -206,6 +209,16 @@ open class TSTextView: NSTextView {
                 ) as? Set<String> ?? Set()
                 let newNodeType = attrs[.treesitterNodeType] as? Set<String> ?? Set()
                 guard existNodeType != newNodeType else { continue }
+                let existingFont = attrs[.font] as? NSFont ?? .systemFont(
+                    ofSize: baseFontSize,
+                    weight: baseFontWeight
+                )
+                let font = getDynamicSystemFont(
+                    text: attributeString.string,
+                    baseFont: existingFont
+                )
+                attrs[.font] = font
+                attrs[.paragraphStyle] = self.defaultParagraphStyle
                 textStorage.addAttributes(attrs, range: range)
             }
             textStorage.endEditing()
@@ -222,10 +235,10 @@ open class TSTextView: NSTextView {
             baseFontSize: baseFontSize,
             baseFontWeight: baseFontWeight
         )
-        let lastAttributeString = getAttributeString(
+        let lastAttributeString = getAttributeStringWithoutMark(
             in: NSRange(location: selectedRange.location - 1, length: 1)
         )
-        let nextAttributeString = getAttributeString(
+        let nextAttributeString = getAttributeStringWithoutMark(
             in: NSRange(location: selectedRange.location, length: 1)
         )
         if lastAttributeString == nil {
@@ -241,9 +254,20 @@ open class TSTextView: NSTextView {
         ) as? Set<String>,
               !nodeType.isDisjoint(with: skipNodeType)
         {
+            // Last not skipNodeType
             attrs = nextAttributeString?.attributes(at: 0, effectiveRange: nil) ?? baseAttrStyle
+        } else if let nodeType: Set<String> = nextAttributeString?.attribute(
+            .treesitterNodeType,
+            at: 0,
+            effectiveRange: nil
+        ) as? Set<String>,
+              !nodeType.isDisjoint(with: skipNodeType)
+        {
+            // Next not skipNodeType
+            attrs = lastAttributeString?.attributes(at: 0, effectiveRange: nil) ?? baseAttrStyle
         } else {
-            attrs = lastAttributeString!.attributes(at: 0, effectiveRange: nil)
+            // baseType
+            attrs = baseAttrStyle
         }
         let attrFont =
             attrs[.font] as? NSFont
@@ -254,14 +278,25 @@ open class TSTextView: NSTextView {
         let font = getDynamicSystemFont(text: string, baseFont: attrFont)
         attrs[NSAttributedString.Key("NSOriginalFont")] = font
         attrs[.font] = font
+        attrs[.paragraphStyle] = self.defaultParagraphStyle
         return attrs
     }
 
-    func getAttributeString(in range: NSRange) -> NSAttributedString? {
-        let attributedString = self.attributedString()
+    func getAttributeStringWithoutMark(in range: NSRange) -> NSAttributedString? {
+        let attributedString = getAttributeStringWithoutMark()
         guard range.lowerBound >= 0 && range.upperBound <= attributedString.length
         else { return nil }
         return attributedString.attributedSubstring(from: range)
+    }
+
+    func getAttributeStringWithoutMark() -> NSMutableAttributedString {
+        let attributeString = self.attributedString()
+        let markedRange = self.markedRange()
+        var attributeStringWithoutMark = NSMutableAttributedString(
+            attributedString: attributeString
+        )
+        attributeStringWithoutMark.deleteCharacters(in: markedRange)
+        return attributeStringWithoutMark
     }
 
     func changeLastStyleRange(in affectedCharRange: NSRange, length: Int) {
