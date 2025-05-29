@@ -96,7 +96,9 @@ open class TSTextView: NSTextView {
         let range = self.selectedRangeBeforeMark ?? self.selectedRange()
         let str = getStringFrom(string)
         var attributeString = getAttributeStringWithoutMark()
-        attributeString.insert(.init(string: str), at: range.location)
+        if !str.isEmpty && range.location >= 0 && range.location <= str.count {
+            attributeString.insert(.init(string: str), at: range.location)
+        }
         let inputAttributes = getInputTextAttribute(
             attributeString.string,
             selectedRange: range
@@ -176,36 +178,24 @@ open class TSTextView: NSTextView {
             textStorage.beginEditing()
             for (range, var attrs) in rangeAttrs {
                 guard range.upperBound <= string.count else { continue }
-                var expandRange = NSRange()
                 let existNodeType = attributeString.attribute(
                     .treesitterNodeType,
                     at: range.location,
-                    effectiveRange: &expandRange
+                    effectiveRange: nil
                 ) as? Set<String> ?? Set()
                 let newNodeType = attrs[.treesitterNodeType] as? Set<String> ?? Set()
                 guard existNodeType != newNodeType else { continue }
 
-                var expandRangeString = attributeString.attributedSubstring(
-                    from: expandRange
-                ).string
-                if let lastNewLineIndex = expandRangeString.lastIndex(of: "\n") {
-                    let newLineStart = expandRangeString.distance(
-                        from: expandRangeString.startIndex,
-                        to: lastNewLineIndex
-                    )
-                    expandRange = .init(
-                        location: expandRange.location + newLineStart + 1,
-                        length: expandRange.length - newLineStart - 1
-                    )
-                }
-                let existingFont = attrs[.font] as? NSFont ?? .systemFont(
+                var font = attrs[.font] as? NSFont ?? .systemFont(
                     ofSize: baseFontSize,
                     weight: baseFontWeight
                 )
-                let font = getDynamicSystemFont(
-                    text: attributeString.attributedSubstring(from: expandRange).string,
-                    baseFont: existingFont
-                )
+                if !font.fontDescriptor.symbolicTraits.contains(.monoSpace) {
+                    font = getDynamicSystemFont(
+                        text: attributeString.string,
+                        baseFont: font
+                    )
+                }
                 attrs[.font] = font
                 attrs[.paragraphStyle] = self.defaultParagraphStyle
                 textStorage.addAttributes(attrs, range: range)
