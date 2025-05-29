@@ -59,8 +59,10 @@ open class TSTextView: NSTextView {
             selectedRangeBeforeMark = range
         }
         let str = getStringFrom(string)
-        let inputAttributes = getInputTextAttribute(self.string, selectedRange: range)
+        var inputAttributes = getInputTextAttribute(self.string, selectedRange: range)
         self.typingAttributes = inputAttributes
+        inputAttributes[.underlineStyle] = NSUnderlineStyle.single.rawValue
+        inputAttributes[.underlineColor] = NSColor.controlAccentColor
         super.setMarkedText(
             NSAttributedString(string: str, attributes: inputAttributes),
             selectedRange: selectedRange,
@@ -111,34 +113,6 @@ open class TSTextView: NSTextView {
         self.scheduleRenderTreesitter()
     }
 
-    override open func unmarkText() {
-        super.unmarkText()
-    }
-    
-    override open func scrollRangeToVisible(_ range: NSRange) {
-        super.scrollRangeToVisible(range)
-    }
-    
-    override open func scrollToVisible(_ rect: NSRect) -> Bool {
-        super.scrollToVisible(rect)
-    }
-    
-    override open func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-    }
-    
-    override open func copy(_ sender: Any?) {
-        super.copy(sender)
-    }
-    
-    override open func keyUp(with event: NSEvent) {
-        super.keyUp(with: event)
-    }
-
-    override open func keyDown(with event: NSEvent) {
-        super.keyDown(with: event)
-    }
-    
     public func scheduleRenderTreesitter() {
         renderItem?.cancel()
         renderItem = DispatchWorkItem(qos: .userInteractive) { [weak self] in
@@ -202,19 +176,34 @@ open class TSTextView: NSTextView {
             textStorage.beginEditing()
             for (range, var attrs) in rangeAttrs {
                 guard range.upperBound <= string.count else { continue }
+                var expandRange = NSRange()
                 let existNodeType = attributeString.attribute(
                     .treesitterNodeType,
                     at: range.location,
-                    effectiveRange: nil
+                    effectiveRange: &expandRange
                 ) as? Set<String> ?? Set()
                 let newNodeType = attrs[.treesitterNodeType] as? Set<String> ?? Set()
                 guard existNodeType != newNodeType else { continue }
+
+                var expandRangeString = attributeString.attributedSubstring(
+                    from: expandRange
+                ).string
+                if let lastNewLineIndex = expandRangeString.lastIndex(of: "\n") {
+                    let newLineStart = expandRangeString.distance(
+                        from: expandRangeString.startIndex,
+                        to: lastNewLineIndex
+                    )
+                    expandRange = .init(
+                        location: expandRange.location + newLineStart + 1,
+                        length: expandRange.length - newLineStart - 1
+                    )
+                }
                 let existingFont = attrs[.font] as? NSFont ?? .systemFont(
                     ofSize: baseFontSize,
                     weight: baseFontWeight
                 )
                 let font = getDynamicSystemFont(
-                    text: attributeString.string,
+                    text: attributeString.attributedSubstring(from: expandRange).string,
                     baseFont: existingFont
                 )
                 attrs[.font] = font
